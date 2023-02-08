@@ -181,12 +181,18 @@ export default {
       autocompleteList: [],
     };
   },
-  created: function () {
+  created() {
     fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true")
       .then((response) => response.json())
       .then((data) => {
         this.currencies = Object.values(data?.Data);
       });
+
+    const tickerData = localStorage.getItem("currencyList");
+    if (tickerData) {
+      this.tickers = JSON.parse(tickerData);
+      this.tickers.forEach((item) => this.subscribeToUpdate(item.currency));
+    }
   },
   mounted: function () {
     this.addFieldErrorEL = document.querySelector("[data-add-error]");
@@ -228,6 +234,21 @@ export default {
         this.autocompleteList = [];
       }
     },
+    subscribeToUpdate(ticker) {
+      const API_KEY =
+        "5e8354e068a3885f5bf11b367f32efa47041c0d0abb5594620d22a04e61c1c7a";
+      const API = `https://min-api.cryptocompare.com/data/price?fsym=${ticker}&tsyms=USD,JPY,EUR&api_key=${API_KEY}`;
+      setInterval(async () => {
+        await fetch(API)
+          .then((response) => response.json())
+          .then((data) => {
+            this.tickers.forEach((item) => {
+              if (item.currency === ticker)
+                item.price = data[this.defaultCurrency];
+            });
+          });
+      }, 5000);
+    },
     onAddValue() {
       const isTicker = this.checkTicker(this.inputCurrency);
       if (isTicker) {
@@ -240,21 +261,9 @@ export default {
           currency: this.inputCurrency,
           price: "-",
         };
-        const API_KEY =
-          "5e8354e068a3885f5bf11b367f32efa47041c0d0abb5594620d22a04e61c1c7a";
-        const API = `https://min-api.cryptocompare.com/data/price?fsym=${newTicker.currency}&tsyms=USD,JPY,EUR&api_key=${API_KEY}`;
         this.tickers.push(newTicker);
-        setInterval(async () => {
-          await fetch(API)
-            .then((response) => response.json())
-            .then((data) => {
-              this.tickers.forEach((item) => {
-                if (item.currency === newTicker.currency)
-                  item.price = data[this.defaultCurrency];
-              });
-            });
-        }, 5000);
-
+        localStorage.setItem("currencyList", JSON.stringify(this.tickers));
+        this.subscribeToUpdate(newTicker.currency);
         this.inputCurrency = "";
       }
     },
@@ -262,6 +271,7 @@ export default {
       this.tickers = this.tickers.filter((item) => {
         return item.currency !== currency;
       });
+      localStorage.setItem("currencyList", JSON.stringify(this.tickers));
     },
   },
 };
