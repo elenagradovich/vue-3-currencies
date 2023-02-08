@@ -32,10 +32,10 @@
               >Тикер</label
             >
             <div class="mt-1 relative rounded-md shadow-md">
-              {{ inputCurrency }}
               <input
                 v-model="inputCurrency"
                 v-on:keydown.enter="onAddValue"
+                v-on:input="getAutocomplete"
                 type="text"
                 name="wallet"
                 id="wallet"
@@ -44,30 +44,19 @@
               />
             </div>
             <div
+              v-if="autocompleteList.length"
               class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
             >
               <span
+                v-for="autocompleteItem in autocompleteList"
+                v-bind:key="autocompleteItem"
+                v-on:click="inputCurrency = autocompleteItem"
                 class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
               >
-                BTC
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                DOGE
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                BCH
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                CHD
+                {{ autocompleteItem }}
               </span>
             </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div data-add-error class="text-sm text-red-600"></div>
           </div>
         </div>
         <button
@@ -184,40 +173,95 @@ export default {
     return {
       inputCurrency: null,
       tickers: [],
+      currencies: [],
       current: null,
       message: `"Вы загрузили эту страницу:" ${new Date().toLocaleString()}`,
       defaultCurrency: "USD",
+      addFieldErrorEL: null,
+      autocompleteList: [],
     };
   },
+  created: function () {
+    fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true")
+      .then((response) => response.json())
+      .then((data) => {
+        this.currencies = Object.values(data?.Data);
+      });
+  },
+  mounted: function () {
+    this.addFieldErrorEL = document.querySelector("[data-add-error]");
+  },
   methods: {
-    onAddValue: function () {
-      const newTicker = {
-        currency: this.inputCurrency,
-        price: "-",
-      };
-      const API_KEY =
-        "5e8354e068a3885f5bf11b367f32efa47041c0d0abb5594620d22a04e61c1c7a";
-      const API = `https://min-api.cryptocompare.com/data/price?fsym=${newTicker.currency}&tsyms=USD,JPY,EUR&api_key=${API_KEY}`;
-      this.tickers.push(newTicker);
-      console.log(this.tickers);
-      setInterval(async () => {
-        await fetch(API)
-          .then((response) => response.json())
-          .then((data) => {
-            this.tickers.forEach((item) => {
-              if (item.currency === newTicker.currency)
-                item.price = data[this.defaultCurrency];
-            });
-          });
-      }, 5000);
-
-      this.inputCurrency = "";
+    checkTicker(ticker) {
+      if (this.tickers.length) {
+        const isExist =
+          this.tickers.length &&
+          [
+            ...this.tickers?.map((item) => item.currency.toLowerCase()),
+          ]?.includes(ticker.toLowerCase());
+        return isExist;
+      }
+      return false;
     },
-    onDeleteCard: function (currency) {
+    showError(message, el) {
+      if (el) el.innerText = message;
+    },
+    hideError(el) {
+      if (el) el.innerText = "";
+    },
+    getAutocomplete() {
+      if (this.currencies.length && this.inputCurrency !== "") {
+        const newList = this.currencies.filter((item) =>
+          item.Symbol.toLowerCase().includes(this.inputCurrency.toLowerCase())
+        );
+
+        if (newList.length) {
+          this.autocompleteList = newList
+            .slice(0, 4)
+            .map((item) => item?.Symbol);
+          return;
+        }
+
+        this.autocompleteList = [];
+      }
+      if (this.inputCurrency === "") {
+        this.autocompleteList = [];
+      }
+    },
+    onAddValue() {
+      const isTicker = this.checkTicker(this.inputCurrency);
+      if (isTicker) {
+        this.showError("Такой тикер уже добавлен", this.addFieldErrorEL);
+        this.inputCurrency = "";
+        return;
+      }
+      if (this.inputCurrency) {
+        const newTicker = {
+          currency: this.inputCurrency,
+          price: "-",
+        };
+        const API_KEY =
+          "5e8354e068a3885f5bf11b367f32efa47041c0d0abb5594620d22a04e61c1c7a";
+        const API = `https://min-api.cryptocompare.com/data/price?fsym=${newTicker.currency}&tsyms=USD,JPY,EUR&api_key=${API_KEY}`;
+        this.tickers.push(newTicker);
+        setInterval(async () => {
+          await fetch(API)
+            .then((response) => response.json())
+            .then((data) => {
+              this.tickers.forEach((item) => {
+                if (item.currency === newTicker.currency)
+                  item.price = data[this.defaultCurrency];
+              });
+            });
+        }, 5000);
+
+        this.inputCurrency = "";
+      }
+    },
+    onDeleteCard(currency) {
       this.tickers = this.tickers.filter((item) => {
         return item.currency !== currency;
       });
-      console.log(this.tickers);
     },
   },
 };
