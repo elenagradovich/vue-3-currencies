@@ -229,13 +229,37 @@ export default {
       this.tickers = JSON.parse(tickerData);
       this.tickers.forEach((item) => this.subscribeToUpdate(item.currency));
     }
+
+    const windowData = Object.fromEntries(
+      new URL(window.location).searchParams?.entries()
+    );
+
+    if (windowData) {
+      this.inputFilter = windowData?.filter;
+      this.page = windowData?.page;
+    }
   },
   mounted: function () {
     this.addFieldErrorEL = document.querySelector("[data-add-error]");
     this.nextPageButton = document.querySelector("[data-button-next]");
     this.prevPageButton = document.querySelector("[data-button-prev]");
   },
+  watch: {
+    inputFilter() {
+      this.changeURL();
+    },
+    page() {
+      this.changeURL();
+    },
+  },
   methods: {
+    changeURL() {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.inputFilter}&page=${this.page}`
+      );
+    },
     checkTicker(ticker, tickers) {
       if (tickers.length) {
         const isExist =
