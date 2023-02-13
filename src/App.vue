@@ -83,9 +83,41 @@
       </section>
       <template v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
+        <div>
+          <!-- Filter -->
+          <div
+            class="my-4 inline-flex items-center py-0 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Filter
+            <input
+              @input="page = 1"
+              v-model="inputFilter"
+              type="text"
+              class="text-black"
+            />
+          </div>
+
+          <!-- Pagination -->
+          <button
+            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            data-button-prev
+            v-on:click.stop="page > 1 ? page-- : page"
+          >
+            Prev
+          </button>
+          {{ page }}
+          <button
+            v-if="hasNextPage"
+            v-on:click.stop="hasNextPage ? page++ : page"
+            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled"
+            data-button-next
+          >
+            Next
+          </button>
+        </div>
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="{ currency, price } in tickers"
+            v-for="{ currency, price } in filterTickers()"
             v-bind:key="currency"
             :class="{
               'border-4 border-purple-800': current?.currency === currency,
@@ -103,7 +135,7 @@
             </div>
             <div class="w-full border-t border-gray-200"></div>
             <button
-              @click="onDeleteCard(currency)"
+              @click.stop="onDeleteCard(currency)"
               class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
             >
               <svg
@@ -172,6 +204,7 @@ export default {
   data() {
     return {
       inputCurrency: null,
+      inputFilter: "", //filter
       tickers: [],
       currencies: [],
       current: null,
@@ -179,13 +212,16 @@ export default {
       defaultCurrency: "USD",
       addFieldErrorEL: null,
       autocompleteList: [],
+      hasNextPage: true,
+      page: 1,
+      tickersPerPage: 6,
     };
   },
   created() {
     fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true")
       .then((response) => response.json())
       .then((data) => {
-        this.currencies = Object.values(data?.Data);
+        this.currencies = Object.values(data.Data);
       });
 
     const tickerData = localStorage.getItem("currencyList");
@@ -196,18 +232,39 @@ export default {
   },
   mounted: function () {
     this.addFieldErrorEL = document.querySelector("[data-add-error]");
+    this.nextPageButton = document.querySelector("[data-button-next]");
+    this.prevPageButton = document.querySelector("[data-button-prev]");
   },
   methods: {
-    checkTicker(ticker) {
-      if (this.tickers.length) {
+    checkTicker(ticker, tickers) {
+      if (tickers.length) {
         const isExist =
-          this.tickers.length &&
-          [
-            ...this.tickers?.map((item) => item.currency.toLowerCase()),
-          ]?.includes(ticker.toLowerCase());
+          tickers.length &&
+          [...tickers?.map((item) => item.currency.toLowerCase())]?.includes(
+            ticker.toLowerCase()
+          );
         return isExist;
       }
       return false;
+    },
+    paginate(tickers) {
+      if (tickers.length) {
+        const start = this.tickersPerPage * (this.page - 1);
+        const end = this.tickersPerPage * this.page;
+
+        return tickers.slice(start, end);
+      }
+
+      return tickers;
+    },
+    filterTickers() {
+      const filteredTickers = this.tickers.filter((ticker) =>
+        ticker.currency.toLowerCase().includes(this.inputFilter.toLowerCase())
+      );
+
+      this.hasNextPage =
+        filteredTickers.length > this.tickersPerPage * this.page;
+      return this.paginate(filteredTickers);
     },
     showError(message, el) {
       if (el) el.innerText = message;
@@ -249,8 +306,16 @@ export default {
           });
       }, 5000);
     },
+    resetFilter() {
+      this.inputFilter = "";
+    },
+    resetPage() {
+      this.page = 1;
+    },
     onAddValue() {
-      const isTicker = this.checkTicker(this.inputCurrency);
+      this.resetFilter();
+      this.resetPage();
+      const isTicker = this.checkTicker(this.inputCurrency, this.tickers);
       if (isTicker) {
         this.showError("Такой тикер уже добавлен", this.addFieldErrorEL);
         this.inputCurrency = "";
