@@ -117,12 +117,13 @@
         </div>
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="{ currency, price } in filterTickers()"
+            v-for="{ currency, price } in paginatedTickers"
             v-bind:key="currency"
             :class="{
-              'border-4 border-purple-800': current?.currency === currency,
+              'border-4 border-purple-800':
+                selectedTicker?.currency === currency,
             }"
-            @click="current = { currency, price }"
+            @click="selectedTicker = { currency, price }"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
             <div class="px-4 py-5 sm:p-6 text-center">
@@ -156,18 +157,20 @@
         </dl>
         <hr class="w-full border-t border-gray-600 my-4" />
       </template>
-      <section v-if="current" class="relative">
+      <section v-if="selectedTicker" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          {{ current.currency }} - {{ defaultCurrency }}
+          {{ selectedTicker.currency }} - {{ defaultCurrency }}
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
-          <div class="bg-purple-800 border w-10 h-24"></div>
-          <div class="bg-purple-800 border w-10 h-32"></div>
-          <div class="bg-purple-800 border w-10 h-48"></div>
-          <div class="bg-purple-800 border w-10 h-16"></div>
+          <div
+            v-for="(bar, idx) in normalizedGraph"
+            :key="idx"
+            :style="{ height: `${bar}%` }"
+            class="bg-purple-800 border w-10"
+          ></div>
         </div>
         <button
-          @click="current = null"
+          @click="selectedTicker = null"
           type="button"
           class="absolute top-0 right-0"
         >
@@ -207,14 +210,14 @@ export default {
       inputFilter: "", //filter
       tickers: [],
       currencies: [],
-      current: null,
+      selectedTicker: null,
       message: `"Вы загрузили эту страницу:" ${new Date().toLocaleString()}`,
       defaultCurrency: "USD",
       addFieldErrorEL: null,
       autocompleteList: [],
-      hasNextPage: true,
       page: 1,
       tickersPerPage: 6,
+      graph: [],
     };
   },
   created() {
@@ -245,21 +248,62 @@ export default {
     this.prevPageButton = document.querySelector("[data-button-prev]");
   },
   watch: {
-    inputFilter() {
-      this.changeURL();
+    paginatedTickers() {
+      if (this.paginatedTickers.length === 0 && +this.page > 0) {
+        this.page -= 1;
+      }
     },
-    page() {
-      this.changeURL();
+    selectedTicker() {
+      this.graph = []; //сброс графика
     },
-  },
-  methods: {
-    changeURL() {
+
+    pageStateOptions(value) {
       window.history.pushState(
         null,
         document.title,
-        `${window.location.pathname}?filter=${this.inputFilter}&page=${this.page}`
+        `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
       );
     },
+  },
+  computed: {
+    pageStateOptions() {
+      // when changed inputFilter and page pageStateOptions computed for watch
+      return {
+        filter: this.inputFilter,
+        page: this.page,
+      };
+    },
+    startIndex() {
+      return this.tickersPerPage * (this.page - 1);
+    },
+    endIndex() {
+      return this.tickersPerPage * this.page;
+    },
+    filteredTickers() {
+      const filteredTickers = this.tickers.filter((ticker) =>
+        ticker.currency.toLowerCase().includes(this.inputFilter.toLowerCase())
+      );
+      return filteredTickers;
+    },
+    paginatedTickers() {
+      return this.filteredTickers.slice(this.startIndex, this.endIndex);
+    },
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIndex;
+    },
+    normalizedGraph() {
+      const maxValue = Math.max(...this.graph);
+      const minValue = Math.min(...this.graph);
+
+      if (maxValue === minValue) {
+        return this.graph?.map(() => 50);
+      }
+      return this.graph?.map((price) => {
+        5 + (price - minValue) / (maxValue - minValue);
+      });
+    },
+  },
+  methods: {
     checkTicker(ticker, tickers) {
       if (tickers.length) {
         const isExist =
@@ -270,25 +314,6 @@ export default {
         return isExist;
       }
       return false;
-    },
-    paginate(tickers) {
-      if (tickers.length) {
-        const start = this.tickersPerPage * (this.page - 1);
-        const end = this.tickersPerPage * this.page;
-
-        return tickers.slice(start, end);
-      }
-
-      return tickers;
-    },
-    filterTickers() {
-      const filteredTickers = this.tickers.filter((ticker) =>
-        ticker.currency.toLowerCase().includes(this.inputFilter.toLowerCase())
-      );
-
-      this.hasNextPage =
-        filteredTickers.length > this.tickersPerPage * this.page;
-      return this.paginate(filteredTickers);
     },
     showError(message, el) {
       if (el) el.innerText = message;
@@ -327,6 +352,10 @@ export default {
               if (item.currency === ticker)
                 item.price = data[this.defaultCurrency];
             });
+
+            if (this.selectedTicker?.currency === ticker) {
+              this.graph.push(data[this.defaultCurrency]);
+            }
           });
       }, 5000);
     },
@@ -350,7 +379,7 @@ export default {
           currency: this.inputCurrency,
           price: "-",
         };
-        this.tickers.push(newTicker);
+        this.tickers = [...this.tickers, newTicker];
         localStorage.setItem("currencyList", JSON.stringify(this.tickers));
         this.subscribeToUpdate(newTicker.currency);
         this.inputCurrency = "";
@@ -361,6 +390,9 @@ export default {
         return item.currency !== currency;
       });
       localStorage.setItem("currencyList", JSON.stringify(this.tickers));
+    },
+    select(ticker) {
+      this.selectedTicker = ticker;
     },
   },
 };
