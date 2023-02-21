@@ -295,6 +295,8 @@ export default {
 
     selectedTicker() {
       this.graphList = [];
+      //the next DOM update cycle $nextTick. $nextTick return promise
+      this.$nextTick().then(this.calculateMaxGraphElenments);
       this.calculateMaxGraphElenments();
     },
 
@@ -375,7 +377,6 @@ export default {
         .forEach((t) => {
           if (t === this.selectedTicker) {
             this.graphList.push(price);
-            this.calculateMaxGraphElenments();
             while (this.graphList.length > this.maxGraphElements) {
               this.graphList.shift();
             }
