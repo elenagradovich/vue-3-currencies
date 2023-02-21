@@ -90,7 +90,12 @@
             }"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
-            <div class="px-4 py-5 sm:p-6 text-center">
+            <div
+              class="px-4 py-5 sm:p-6 text-center"
+              :class="{
+                'bg-red-100': t.price === '-',
+              }"
+            >
               <dt class="text-sm font-medium text-gray-500 truncate">
                 {{ t.currency }} - USD
               </dt>
@@ -125,7 +130,10 @@
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
           {{ selectedTicker.currency }} - USD
         </h3>
-        <div class="flex items-end border-gray-600 border-b border-l h-64">
+        <div
+          ref="graph"
+          class="flex items-end border-gray-600 border-b border-l h-64"
+        >
           <div
             v-for="(bar, idx) in normalizedGraph"
             :key="idx"
@@ -180,17 +188,24 @@ export default {
       currencies: [],
       selectedTicker: null,
       message: `"Вы загрузили эту страницу:" ${new Date().toLocaleString()}`,
-      graph: [],
+      graphList: [],
 
       page: 1,
       addFieldErrorEL: null,
       autocompleteList: [],
+      maxGraphElements: 1,
     };
   },
+  // MOUNTED
   mounted: function () {
     this.addFieldErrorEL = document.querySelector("[data-add-error]");
+    window.addEventListener("resize", this.calculateMaxGraphElenments);
   },
-
+  // UNMOUNTED
+  unmounted: function () {
+    window.removeEventListener("resize", this.calculateMaxGraphElenments);
+  },
+  //CREATED
   created() {
     fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true")
       .then((response) => response.json())
@@ -228,7 +243,7 @@ export default {
 
     setInterval(this.updateTickers, 5000);
   },
-
+  //COMPUTED -startIndex, -endIndex, -filteredTickers, -paginatedTickers, -pageStateOptions
   computed: {
     startIndex() {
       return (this.page - 1) * 6;
@@ -253,14 +268,14 @@ export default {
     },
 
     normalizedGraph() {
-      const maxValue = Math.max(...this.graph);
-      const minValue = Math.min(...this.graph);
+      const maxValue = Math.max(...this.graphList);
+      const minValue = Math.min(...this.graphList);
 
       if (maxValue === minValue) {
-        return this.graph.map(() => 50);
+        return this.graphList.map(() => 50);
       }
 
-      return this.graph.map(
+      return this.graphList.map(
         (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
       );
     },
@@ -272,8 +287,50 @@ export default {
       };
     },
   },
+  //WATCH -ticker, -selectedTicker, -tickers, -paginatedTickers, -filter, -pageStateOptions
+  watch: {
+    ticker() {
+      this.autocompleteList = [];
+    },
 
+    selectedTicker() {
+      this.graphList = [];
+      this.calculateMaxGraphElenments();
+    },
+
+    tickers(newValue, oldValue) {
+      console.log(newValue === oldValue);
+      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
+    },
+
+    paginatedTickers() {
+      if (this.paginatedTickers.length === 0 && this.page > 1) {
+        this.page -= 1;
+      }
+    },
+
+    filter() {
+      this.page = 1;
+    },
+
+    pageStateOptions(value) {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
+      );
+    },
+  },
+  // METHODS
   methods: {
+    calculateMaxGraphElenments() {
+      if (!this.$refs.graph) {
+        return;
+      }
+
+      const graphWidth = 40;
+      this.maxGraphElements = this.$refs.graph.clientWidth / graphWidth;
+    },
     checkTicker(ticker, tickers) {
       if (tickers.length) {
         const isExist =
@@ -317,7 +374,11 @@ export default {
         .filter((t) => t.currency === tickerCurrency)
         .forEach((t) => {
           if (t === this.selectedTicker) {
-            this.graph.push(price);
+            this.graphList.push(price);
+            this.calculateMaxGraphElenments();
+            while (this.graphList.length > this.maxGraphElements) {
+              this.graphList.shift();
+            }
           }
           t.price = price;
         });
@@ -361,39 +422,6 @@ export default {
         this.selectedTicker = null;
       }
       unsubscribeFromTicker(tickerToRemove.currency);
-    },
-  },
-
-  watch: {
-    ticker() {
-      this.autocompleteList = [];
-    },
-
-    selectedTicker() {
-      this.graph = [];
-    },
-
-    tickers(newValue, oldValue) {
-      console.log(newValue === oldValue);
-      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
-    },
-
-    paginatedTickers() {
-      if (this.paginatedTickers.length === 0 && this.page > 1) {
-        this.page -= 1;
-      }
-    },
-
-    filter() {
-      this.page = 1;
-    },
-
-    pageStateOptions(value) {
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
-      );
     },
   },
 };
