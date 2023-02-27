@@ -1,3 +1,5 @@
+// cryptonomicon
+
 const API_KEY =
   "78a4d592e46e25fe95ee36e71fd7bccf9e2cabf14c8b8dac0e27be61dae23790";
 
@@ -63,3 +65,22 @@ export const unsubscribeFromTicker = (ticker) => {
   tickersHandlers.delete(ticker);
   unsubscribeFromTickerOnWs(ticker);
 };
+
+//users
+export function loadUsers() {
+  return fetch("https://jsonplaceholder.typicode.com/users")
+    .then((r) => r.json())
+    .then((data) => {
+      console.log("loadUsers data", data);
+      return data;
+    });
+}
+//todo
+export function loadTodos() {
+  return fetch("https://jsonplaceholder.typicode.com/todos")
+    .then((r) => r.json())
+    .then((data) => {
+      console.log("loadTodos data", data);
+      return data;
+    });
+}
