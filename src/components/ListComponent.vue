@@ -2,7 +2,7 @@
   <input placeholder="filter..." v-model="filter" />
   <ul>
     <li v-for="item in filteredItems" :key="item.id">
-      <component :is="itemComponent" :item="item" />
+      <slot name="item" :item="item"> </slot>
     </li>
   </ul>
 </template>
@@ -17,10 +17,6 @@ export default {
     },
     fields: {
       type: Array,
-      required: true,
-    },
-    itemComponent: {
-      type: Object,
       required: true,
     },
   },

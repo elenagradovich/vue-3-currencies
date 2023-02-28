@@ -3,16 +3,16 @@
     <div class="container">
       <router-link to="/">Go to Currency page</router-link>
       <hr class="w-full border-t border-gray-600 my-4" />
-      <list-component
-        :items="users"
-        :fields="['username', 'name']"
-        :itemComponent="$options.propsComponents.UserComponent"
-      />
-      <list-component
-        :items="todos"
-        :fields="['title']"
-        :itemComponent="$options.propsComponents.TodoComponent"
-      />
+      <list-component :items="users" :fields="['username', 'name']">
+        <template #item="props">
+          <user-component :item="props.item" />
+        </template>
+      </list-component>
+      <list-component :items="todos" :fields="['title']">
+        <template #item="props">
+          <todo-component :item="props.item" />
+        </template>
+      </list-component>
     </div>
   </div>
 </template>
@@ -27,10 +27,8 @@ export default {
   name: "VueExamples",
   components: {
     ListComponent,
-  },
-  propsComponents: {
-    UserComponent,
     TodoComponent,
+    UserComponent,
   },
   mounted() {
     loadUsers().then((users) => {
@@ -46,16 +44,5 @@ export default {
       todos: [],
     };
   },
-  // computed: {
-  //   filteredItems() {
-  //     return this.filter
-  //       ? this.users.filter((item) =>
-  //           item.fields.some((field) => {
-  //             return field?.toLowerCase().includes(this.filter?.toLowerCase());
-  //           })
-  //         )
-  //       : this.users;
-  //   },
-  // },
 };
 </script>
