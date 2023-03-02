@@ -71,16 +71,47 @@ export function loadUsers() {
   return fetch("https://jsonplaceholder.typicode.com/users")
     .then((r) => r.json())
     .then((data) => {
-      console.log("loadUsers data", data);
       return data;
     });
 }
+
 //todo
 export function loadTodos() {
   return fetch("https://jsonplaceholder.typicode.com/todos")
     .then((r) => r.json())
     .then((data) => {
-      console.log("loadTodos data", data);
       return data;
     });
+}
+//techcrunch techcrunch.com
+export function getPosts({ page = 1, filters = {} } = {}) {
+  const url = new URL("https://techcrunch.com/wp-json/wp/v2/posts");
+  Object.entries({
+    page,
+    per_page: 10,
+    ...filters,
+  }).forEach(([key, value]) => {
+    if (value !== null) {
+      url.searchParams.append(key, value);
+    }
+  });
+  return fetch(url).then((r) => r.json());
+}
+
+export function getCategories() {
+  const url = new URL("https://techcrunch.com/wp-json/wp/v2/categories");
+  return fetch(url).then((r) => r.json());
+}
+//swapi
+export function getPlanets({ page = 1, search } = {}) {
+  const url = new URL("https://swapi.dev/api/planets");
+  Object.entries({
+    page,
+    search,
+  }).forEach(([key, value]) => {
+    if (value != null) {
+      url.searchParams.append(key, value);
+    }
+  });
+  return fetch(url).then((r) => r.json());
 }

@@ -1,16 +1,18 @@
 import { createApp } from "vue";
-import { createRouter, createWebHashHistory } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 import App from "./App.vue";
-import VueCurrencies from "./pages/VueCurrencies.vue";
-import VueExamples from "./pages/VueExamples.vue";
+import CurrenciesPage from "./pages/CurrenciesPage.vue";
+import ExamplesPage from "./pages/ExamplesPage.vue";
+import NewsPage from "./pages/NewsPage.vue";
 import "./assets/tailwind.css";
 
 const routes = [
-  { path: "/", component: VueCurrencies },
-  { path: "/examples", component: VueExamples },
+  { path: "/", component: CurrenciesPage },
+  { path: "/examples", component: ExamplesPage },
+  { path: "/news", component: NewsPage },
 ];
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes,
 });
 const app = createApp(App);
